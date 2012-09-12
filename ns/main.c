@@ -10,8 +10,45 @@
 #include <getopt.h>
 #include <assert.h>
 #include <string.h>
+#include <time.h>
+
+#include <libexif/exif-data.h>
 
 //#include <argp.h>
+
+time_t get_image_datetime(const char* image)
+{
+	ExifData *data;
+	ExifEntry *entry;
+	
+	data = exif_data_new_from_file(image);
+	
+	if ( data != NULL )
+	{
+		entry = exif_content_get_entry(data->ifd[EXIF_IFD_0], EXIF_TAG_DATE_TIME);
+		
+		if ( entry != NULL )
+		{
+			char date_time[1024];
+			exif_entry_get_value(entry, date_time, 1024);
+			
+			//http://stackoverflow.com/questions/1002542/how-to-convert-datetime-to-unix-timestamp-in-c
+			
+			struct tm tm;
+			time_t epoch;
+			if ( strptime(date_time, "%Y:%m:%d %H:%M:%S", &tm) != NULL )
+			{
+				epoch = mktime(&tm);
+				exif_data_unref(data);
+				return epoch;
+			}
+		}
+	}
+	
+	exif_data_unref(data);
+	
+	return (time_t)0;
+}
 
 void get_program_name(char * const* argv, char *program_name)
 {
@@ -101,7 +138,20 @@ int main(int argc, char * const* argv)
 	{
 		printf("Non-option arguments:\n");
 		while(optind < argc)
-			printf("%s\n", argv[optind++]);
+		{
+			time_t date_time = get_image_datetime(argv[optind]);
+			
+			if ( date_time  == 0 )
+			{
+				fprintf(stderr, "Not an JPEG file or no EXIF data.\n");
+			}
+			else
+			{
+				printf("%s, %ld\n", argv[optind], date_time );
+			}
+			
+			optind++;
+		}
 	}
 	
     return 0;
