@@ -59,8 +59,16 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "hello"
+            argument = "~/Desktop/Snow-Trip/*.jpg"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-b IMG -s &apos; &apos; --width=4 -S 10 &apos;~/Desktop/Snow-Trip/*.jpg&apos;"
             isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-b IMG -s &apos; &apos; --width=4 -S 10 ~/Desktop/Snow-Trip/*.jpg"
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
       <AdditionalOptions>
