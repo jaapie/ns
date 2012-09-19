@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <libexif/exif-data.h>
 #include <sys/stat.h>
+#include <pcre.h>
 
 void print_error(const char * prog_name, const char* fmt, ...)
 {
@@ -54,6 +55,27 @@ int file_exists(const char *file_name)
 	return -1;
 }
 
+int get_path_from_file_spec(char *file_spec, char *path)
+{
+	int i;
+	int occurrence_index = 0;
+	size_t count = strlen(file_spec);
+	
+	assert(count > 0);
+	if ( count == 0 )
+		return 0;
+	
+	for ( i = 0; i < count; i++ )
+	{
+		if ( file_spec[i] == '/' )
+			occurrence_index = i;
+	}
+	
+	strncpy(path, file_spec, occurrence_index);
+	path[occurrence_index] = '\0';
+	
+	return occurrence_index - 1;
+}
 
 char *get_file_ext(const char *filename)
 {
@@ -198,7 +220,7 @@ void file_list_sort(file_item_t *list, int items)
 	}
 }
 
-char *create_new_file_name( char *base, char separator, unsigned int width, unsigned int sequence, char *ext )
+char *create_new_file_name( char *path, char *base, char separator, unsigned int width, unsigned int sequence, char *ext )
 {
 	char *new_name;
 	unsigned int size = 0;
@@ -206,7 +228,7 @@ char *create_new_file_name( char *base, char separator, unsigned int width, unsi
 	assert(base != NULL);
 	assert(ext != NULL);
 	
-	size = (unsigned int)(strlen(base) + 1 + width + 1 + strlen(ext) + 1);
+	size = (unsigned int)(strlen(path) + strlen(base) + 1 + width + 1 + strlen(ext) + 1);
 	
 	new_name = malloc(size);
 	
@@ -215,7 +237,7 @@ char *create_new_file_name( char *base, char separator, unsigned int width, unsi
 	if ( new_name != NULL )
 	{
 		char *padded_number = get_zero_padded_number(sequence, width);
-		sprintf(new_name, "%s%c%s.%s", base, separator, padded_number, ext);
+		sprintf(new_name, "%s/%s%c%s.%s", path, base, separator, padded_number, ext);
 		free(padded_number);
 		
 		return new_name;
@@ -224,10 +246,12 @@ char *create_new_file_name( char *base, char separator, unsigned int width, unsi
 		return NULL;
 }
 
-void file_list_generate_new_filenames(file_item_t *list, int items, char *base, char separator, unsigned int width, unsigned int sequence_start )
+int file_list_generate_new_filenames(file_item_t *list, int items, char *base, char separator, unsigned int width, unsigned int sequence_start )
 {
 	int i;
 	char *ext;
+	char path[1024];
+	int length = 0;
 	
 	assert(list != NULL);
 	assert(base != NULL);
@@ -239,8 +263,18 @@ void file_list_generate_new_filenames(file_item_t *list, int items, char *base, 
 		ext = get_file_ext(list[i].file_name);
 		assert(strlen(ext) > 0);
 		assert(strcmp(ext, "") != 0);
-		list[i].file_name_new = create_new_file_name(base, separator, width, sequence_start + (unsigned int)i, ext);
+		
+		length = get_path_from_file_spec(list[i].file_name, path);
+		
+		assert(length > 0);
+		
+		if (length > 0)
+			list[i].file_name_new = create_new_file_name(path, base, separator, width, sequence_start + (unsigned int)i, ext);
+		else
+			return -1;
 	}
+	
+	return 0;
 }
 
 int file_list_rename_files( file_item_t *list, int items, int prompt_for_confirmation)
@@ -354,7 +388,7 @@ int main(int argc, char * const* argv)
 		{0, 0, 0, 0}
 	};
 	
-	get_program_name(argv, name);
+	//get_program_name(argv, name);
 	
 	if ( argc <= 1)
 	{
@@ -496,11 +530,13 @@ int main(int argc, char * const* argv)
 			
 			optind++;
 		}
+		
 		if (actual_file_count > 0)
 		{
 			file_list_sort(file_list, file_list_count);
 			file_list_generate_new_filenames(file_list, file_list_count, base_name, separator, number_width, sequence_start);
 			file_list_print(file_list, file_list_count);
+			file_list_rename_files(file_list, file_list_count, 0);
 		}
 		
 		file_list_destroy(file_list, file_list_count);

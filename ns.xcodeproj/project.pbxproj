@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		230D6B8515FC9F76003A9176 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 230D6B8415FC9F76003A9176 /* main.c */; };
 		230D6B8715FC9F76003A9176 /* ns.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 230D6B8615FC9F76003A9176 /* ns.1 */; };
-		235DBF8415FF0599007C3124 /* libexif.12.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 235DBF8315FF0599007C3124 /* libexif.12.dylib */; };
+		23545E1E16097578009A60AA /* libexif.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 23545E1D16097578009A60AA /* libexif.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -29,7 +29,7 @@
 		230D6B8015FC9F76003A9176 /* ns */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ns; sourceTree = BUILT_PRODUCTS_DIR; };
 		230D6B8415FC9F76003A9176 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		230D6B8615FC9F76003A9176 /* ns.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = ns.1; sourceTree = "<group>"; };
-		235DBF8315FF0599007C3124 /* libexif.12.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libexif.12.dylib; path = /usr/local/Cellar/libexif/0.6.21/lib/libexif.12.dylib; sourceTree = "<absolute>"; };
+		23545E1D16097578009A60AA /* libexif.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libexif.a; path = /usr/local/Cellar/libexif/0.6.21/lib/libexif.a; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				235DBF8415FF0599007C3124 /* libexif.12.dylib in Frameworks */,
+				23545E1E16097578009A60AA /* libexif.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -73,7 +73,7 @@
 		235DBF8515FF05CD007C3124 /* lib */ = {
 			isa = PBXGroup;
 			children = (
-				235DBF8315FF0599007C3124 /* libexif.12.dylib */,
+				23545E1D16097578009A60AA /* libexif.a */,
 			);
 			name = lib;
 			sourceTree = "<group>";
@@ -190,6 +190,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					/usr/local/lib,
+					/usr/local/Cellar/libexif/0.6.21/lib,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -202,6 +203,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					/usr/local/lib,
+					/usr/local/Cellar/libexif/0.6.21/lib,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};

@@ -64,11 +64,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-b IMG -s &apos; &apos; --width=4 -S 10 &apos;~/Desktop/Snow-Trip/*.jpg&apos;"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-b IMG -s &apos; &apos; --width=4 -S 10 ~/Desktop/Snow-Trip/*.jpg"
-            isEnabled = "NO">
+            argument = "-b IMG -s &apos;_&apos; -w 4 -S 1 ~/Desktop/Snow-Trip/*.jpg"
+            isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
       <AdditionalOptions>
