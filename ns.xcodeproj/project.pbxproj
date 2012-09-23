@@ -10,6 +10,7 @@
 		230D6B8515FC9F76003A9176 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 230D6B8415FC9F76003A9176 /* main.c */; };
 		230D6B8715FC9F76003A9176 /* ns.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 230D6B8615FC9F76003A9176 /* ns.1 */; };
 		23545E1E16097578009A60AA /* libexif.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 23545E1D16097578009A60AA /* libexif.a */; };
+		23784999160BBFF600F4B390 /* libargp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 23784998160BBFF600F4B390 /* libargp.a */; settings = {ATTRIBUTES = (Required, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -30,6 +31,7 @@
 		230D6B8415FC9F76003A9176 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		230D6B8615FC9F76003A9176 /* ns.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = ns.1; sourceTree = "<group>"; };
 		23545E1D16097578009A60AA /* libexif.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libexif.a; path = /usr/local/Cellar/libexif/0.6.21/lib/libexif.a; sourceTree = "<absolute>"; };
+		23784998160BBFF600F4B390 /* libargp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libargp.a; path = "/usr/local/Cellar/argp-standalone/1.3/lib/libargp.a"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,6 +39,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				23784999160BBFF600F4B390 /* libargp.a in Frameworks */,
 				23545E1E16097578009A60AA /* libexif.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -47,6 +50,7 @@
 		230D6B7515FC9F76003A9176 = {
 			isa = PBXGroup;
 			children = (
+				23784998160BBFF600F4B390 /* libargp.a */,
 				230D6B8315FC9F76003A9176 /* ns */,
 				230D6B8115FC9F76003A9176 /* Products */,
 			);
@@ -191,6 +195,7 @@
 					"$(inherited)",
 					/usr/local/lib,
 					/usr/local/Cellar/libexif/0.6.21/lib,
+					"\"/usr/local/Cellar/argp-standalone/1.3/lib\"",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -204,6 +209,7 @@
 					"$(inherited)",
 					/usr/local/lib,
 					/usr/local/Cellar/libexif/0.6.21/lib,
+					"\"/usr/local/Cellar/argp-standalone/1.3/lib\"",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};

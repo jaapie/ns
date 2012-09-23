@@ -10,17 +10,19 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
-#include <assert.h>
+#include </usr/include/assert.h>
 #include <string.h>
 #include <time.h>
-#include <error.h>
 #include <errno.h>
 #include <libexif/exif-data.h>
 #include <sys/stat.h>
 #include <pcre.h>
+#include <argp.h>
 
-void print_error(const char * prog_name, const char* fmt, ...)
+const char *argp_program_bug_address = "me@jacobdegeling.com";
+const char *argp_program_version = "version 0.1";
+
+void print_error(const char* fmt, ...)
 {
 	va_list list;
 	char buf[512];
@@ -29,7 +31,7 @@ void print_error(const char * prog_name, const char* fmt, ...)
 	vsprintf(buf, fmt, list);
 	va_end(list);
 	
-	fprintf(stderr, "%s: error: %s", prog_name, buf);
+	fprintf(stderr, "error: %s", buf);
 }
 
 int file_exists(const char *file_name)
@@ -138,85 +140,97 @@ typedef struct file_item {
 	char *file_name;
 	char *file_name_new;
 	time_t date_time;
+	struct file_item *next;
 } file_item_t;
 
 file_item_t *file_list_create(int items)
-{
-	assert(items > 0);
-	if ( items > 0 )
-	{
-		file_item_t *list = malloc(items * sizeof(file_item_t));
-		assert(list!=NULL);
-		return list;
-	}
-	
+{	
 	return NULL;
 }
 
-void file_list_destroy(file_item_t* list, int items)
+void file_list_add(file_item_t **head, file_item_t *new)
 {
-	int i;
+	assert(head != NULL);
+	assert(new != NULL);
 	
-	assert(items > 0);
-	assert(list != NULL);
+	file_item_t *prev, *current;
 	
-	if( list != NULL && items > 0 )
+	if (*head == NULL)
 	{
-		for ( i = 0; i < items; i++ )
-		{
-			//assert(list[i].file_name != NULL);
-			if ( list[i].file_name != NULL )
-				free(list[i].file_name);
-			
-			if ( list[i].file_name_new != NULL)
-				free(list[i].file_name_new);
-		}
-		
-		free(list);
+		*head = new;
+		return;
 	}
+	
+	if (new->date_time < (*head)->date_time)
+	{
+		new->next = *head;
+		*head = new;
+		return;
+	}
+	
+	current = *head;
+	
+	while (current != NULL && current->date_time <= new->date_time)
+	{
+		prev = current;
+		current = current->next;
+	}
+	
+	if (current != NULL)
+	{
+		prev->next = new;
+		new->next = current;
+	}
+	else
+	{
+		prev->next = new;
+	}
+	
 }
 
-void file_list_print(file_item_t *list, int items)
+void file_list_destroy(file_item_t** head)
 {
-	assert(list != NULL);
-	assert( items > 0);
+	file_item_t *temp, *current;
 	
-	if (list == NULL || items <= 0)
+	assert(*head != NULL);
+	
+	if (*head == NULL)
 		return;
 	
-	int i;
+	current = *head;
 	
-	for (i = 0; i <items; i++)
+	while (current != NULL)
 	{
-		if (list[i].date_time != 0)
-			printf("%d) %s, %ld -> %s\n", i + 1, list[i].file_name, list[i].date_time, list[i].file_name_new );
-		else
-			fprintf(stderr, "File list item %d is empty.\n", i);
+		temp = current;
+		current = current->next;
+
+		if (temp->file_name_new != NULL)
+			free(temp->file_name_new);
+		
+		free(current);
 	}
+	
 }
 
-int compare_file_items(const void *item1, const void *item2)
+void file_list_print(file_item_t *list)
 {
-	file_item_t *fi1 = (file_item_t*)item1;
-	file_item_t *fi2 = (file_item_t*)item2;
-	
-	if ( fi1->date_time > fi2->date_time)
-		return 1;
-	
-	if ( fi1->date_time < fi2->date_time)
-		return -1;
-	
-	return 0;
-}
+	file_item_t *current = list;
+	unsigned i = 0;
 
-void file_list_sort(file_item_t *list, int items)
-{
-	assert(items > 0);
 	assert(list != NULL);
+
+	if (list == NULL)
+		return;
 	
-	if( list != NULL && items > 0 )
+	while (current != NULL)
 	{
-		qsort(list, items, sizeof(file_item_t), compare_file_items);
+		if (current->date_time != 0)
+			printf("%d) %s, %ld -> %s\n", i + 1, current->file_name, current->date_time, current->file_name_new );
+		else
+			fprintf(stderr, "File list item %d is empty.\n", i + 1);
+		
+		i++;
+		current = current->next;
 	}
 }
 
@@ -246,52 +260,57 @@ char *create_new_file_name( char *path, char *base, char separator, unsigned int
 		return NULL;
 }
 
-int file_list_generate_new_filenames(file_item_t *list, int items, char *base, char separator, unsigned int width, unsigned int sequence_start )
+int file_list_generate_new_filenames(file_item_t *list, char *base, char separator, unsigned int width, unsigned int sequence_start )
 {
-	int i;
+	unsigned int i = 0;
 	char *ext;
 	char path[1024];
-	int length = 0;
+	unsigned int length = 0;
+	file_item_t *current = list;
 	
 	assert(list != NULL);
 	assert(base != NULL);
-	assert(items > 0);
-	
-	for ( i = 0; i < items; i++)
+
+	while(current != NULL)
 	{
-		assert(list[i].file_name != NULL);
-		ext = get_file_ext(list[i].file_name);
+		assert(current->file_name != NULL);
+		ext = get_file_ext(current->file_name);
 		assert(strlen(ext) > 0);
 		assert(strcmp(ext, "") != 0);
 		
-		length = get_path_from_file_spec(list[i].file_name, path);
+		length = get_path_from_file_spec(current->file_name, path);
 		
 		assert(length > 0);
 		
 		if (length > 0)
-			list[i].file_name_new = create_new_file_name(path, base, separator, width, sequence_start + (unsigned int)i, ext);
+			current->file_name_new = create_new_file_name(path, base, separator, width, sequence_start + i, ext);
 		else
 			return -1;
+		
+		i++;
+		current = current->next;
 	}
 	
 	return 0;
 }
 
-int file_list_rename_files( file_item_t *list, int items, int prompt_for_confirmation)
+int file_list_rename_files( file_item_t *list, int prompt_for_confirmation)
 {
-	int i;
+	file_item_t *current = list;
+
 	assert(list != NULL);
-	assert(items > 0);
 	
-	if (list == NULL || items <= 0)
+	if (list == NULL)
 		return -1;
 	
-	for ( i = 0; i < items; i++)
+	while(current != NULL)
 	{
-		if ( rename(list[i].file_name, list[i].file_name_new) == -1)
+		if ( rename(current->file_name, current->file_name_new) == -1)
 		{
 			return errno;
 		}
+		
+		current = current->next;
 	}
 	
 	return 0;
@@ -331,223 +350,208 @@ time_t get_image_date_time(const char* image)
 	return (time_t)0;
 }
 
-void get_program_name(char * const* argv, char *program_name)
+#define OPT_DRY_RUN 0x0001
+#define OPT_PROMPT_FOR_RENAME_CONFIRMATION 0x0002
+
+#define OPT_VERBOSITY_QUIET 0x0008
+#define OPT_VERBOSITY_NORMAL 0x0010
+#define OPT_VERBOSITY_VERBOSE 0x0020
+#define OPT_USE_COLOUR 0x0040
+#define OPT_DONT_USE_COLOUR 0x0080
+
+struct arguments {
+	char **files;
+	unsigned short int flags;
+	unsigned int number_width;
+	char separator;
+	unsigned int sequence_start;
+	char *base_name;
+	file_item_t *file_list;
+	int file_list_count;
+};
+
+error_t parse_options(int key, char *arg, struct argp_state *state)
 {
-	assert( argv != NULL);
-	assert( *argv != NULL);
-	assert(program_name != NULL);
-	
-	if ( argv == NULL || *argv == NULL || program_name == NULL )
-		return;
-	else
+	struct arguments *a = state->input;
+	switch (key)
 	{
-		char *prog = rindex(argv[0], '/');
-		strncpy(program_name, &prog[1], strlen(&prog[1]));
-	}
-}
-
-void usage( const char *program_name )
-{
-	fprintf(stderr, "%s: usage: [OPTIONS] files\n", program_name);
-}
-
-void help ()
-{
-	printf("help\n");
-}
-
-void version ()
-{
-	printf("Numerical Sequencer version 0.1\n");
-}
-
-int main(int argc, char * const* argv)
-{
-	char name[64] ="ns\0";
-	int opt = 0;
-	int i;
-	int opts_found = 0;
-	file_item_t *file_list = NULL;
-	int file_list_count= 0;
-	char *base_name = NULL;
-	unsigned int number_width = 4;
-	char separator = '_';
-	unsigned int sequence_start = 1;
-	static int dry_run;
-	unsigned int actual_file_count = 0;
-
-	static struct option options[] =
-	{
-		{"help", no_argument, NULL, 'h'},
-		{"version", no_argument, NULL, 'v'},
-		{"base", required_argument, NULL, 'b'},
-		{"separator", required_argument, NULL, 's'},
-		{"width", required_argument, NULL, 'w'},
-		{"start", required_argument, NULL, 'S'},
-		{"dry", no_argument, &dry_run, 1 },
-		{0, 0, 0, 0}
-	};
-	
-	//get_program_name(argv, name);
-	
-	if ( argc <= 1)
-	{
-		usage(name);
-		return 1;
-	}
-	
-	while ((opt = getopt_long(argc, argv, "hvb:s:w:S:d", options, NULL)) != -1 )
-	{
-		switch (opt)
+		case ARGP_KEY_INIT:
 		{
-			case 'h':
-				help ();
-				return 0;
-			case 'v':
-				version ();
-				return 0;
-			case 'd':
-				dry_run = 1;
-				break;
-			case 'b':
-			{
-				size_t size = strlen(optarg);
-				assert(size > 0);
-				if ( size > 0 )
-				{
-					base_name = malloc(size + 1);
-					assert(base_name != NULL);
-					if ( base_name != NULL)
-					{
-						//TODO: This name needs to be sanitised so that it is not illegal
-						// windows illegal chars: ^:<>?*|\/
-						// mac/*nix illegal chars: :
-						// mac/*nix shouldn't start with a .
-						strncpy(base_name, optarg, size + 1);
-					}
-					else
-					{
-						print_error(name, "Unable to allocate memory for base file name\n");
-						return 1;
-					}
-				}
-				else
-				{
-					print_error(name, "Unable to determine length of base file name\n");
-					return 1;
-				}
-				
-				break;
-			}
-			case 's':
-			{
-				size_t size = strlen(optarg);
-				if ( size > 1 )
-				{
-					print_error(name, "The --size or -s option's argument was too long (expected 1 character)\n");
-					return 1;
-				}
-				else
-				{
-					separator = optarg[0];
-				}
-				break;
-			}
-			case 'w':
-			{
-				char *endptr;
-				number_width = (unsigned int)strtol(optarg, &endptr, 10);
-				if (endptr[0] != '\0')
-				{
-					print_error(name, "--width or -w requires a number. You passed: \"%s\".\n", endptr);
-					return 1;
-				}
-				
-				break;
-			}
-			case 'S':
-			{
-				char *endptr;
-				sequence_start = (unsigned int)strtol(optarg, &endptr, 10);
-				if (endptr[0] != '\0')
-				{
-					print_error(name, "--sequence or -S requires a number. You passed: \"%s\".\n", endptr);
-					return 1;
-				}
-				
-				break;
-			}
-			case '?':
-				print_error(name, "Unknown argument \"%c\"\n", (char)optopt);
-				usage(name);
-				return 1;
-			case ':':
-				print_error(name, "Missing option argument \"%c\"\n", (char)optopt);
-				usage(name);
-				return 1;
-			default:
-				usage(name);
-				return 1;
+			a->flags = OPT_VERBOSITY_NORMAL | OPT_DONT_USE_COLOUR;
+			a->number_width = 4;
+			a->sequence_start = 1;
+			a->base_name = NULL;
+			a->file_list_count = 0;
+			a->file_list = NULL;
+			break;
 		}
-		
-		opts_found++;
-	}
-	
-	if ( optind < argc )
-	{
-		file_list_count = argc - optind;
-		file_list = file_list_create(file_list_count);
-		
-		for (i = 0; i < file_list_count; i++)
+		case ARGP_KEY_ARG:
 		{
-			if (file_exists(argv[optind]) == 1)
+			if (file_exists(arg))
 			{
-				time_t date_time = get_image_date_time(argv[optind]);
+				time_t date_time = get_image_date_time(arg);
 				
 				if ( date_time  == 0 )
 				{
-					print_error(name, "\"%s\": not a JPEG file or no EXIF data.\n", argv[optind]);
+					if (!(a->flags & OPT_VERBOSITY_QUIET))
+						print_error("\"%s\": not a JPEG file or no EXIF data.\n", arg);
+					break;
 				}
 				else
 				{
-					size_t size = strlen(argv[optind]) + 1;
+					file_item_t *new = (file_item_t*)malloc(sizeof(file_item_t));
 					
-					file_list[i].file_name = (char*)malloc(size);
-					assert(file_list[i].file_name != NULL);
-					strncpy(file_list[i].file_name, argv[optind], size);
+					new->file_name = arg;
+					new->date_time = date_time;
+					new->file_name_new = 0;
+					new->next = 0;
 					
-					//printf("%s -> %s\n", argv[optind], file_list[i].file_name);
-					
-					file_list[i].date_time = date_time;
-					
-					actual_file_count++;
+					file_list_add(&a->file_list, new);
+					a->file_list_count++;
 				}
 			}
 			else
 			{
-				print_error(name, "%s is not a file\n", argv[optind]);
+				argp_failure(state, 1, ENOENT, "\"%s\" was not found, or is not a file.\n", arg);
 			}
 			
-			optind++;
+			break;
 		}
-		
-		if (actual_file_count > 0)
+		case ARGP_KEY_NO_ARGS:
 		{
-			file_list_sort(file_list, file_list_count);
-			file_list_generate_new_filenames(file_list, file_list_count, base_name, separator, number_width, sequence_start);
-			file_list_print(file_list, file_list_count);
-			file_list_rename_files(file_list, file_list_count, 0);
+			argp_usage(state);
+			break;
 		}
+		case 'd':
+			a->flags |= OPT_DRY_RUN;
+			break;
+		case 'v':
+			a->flags |= OPT_VERBOSITY_VERBOSE;
+			break;
+		case 'q':
+			a->flags |= OPT_VERBOSITY_QUIET;
+			break;
+		case 'c':
+			a->flags |= OPT_PROMPT_FOR_RENAME_CONFIRMATION;
+			break;
+		case 'b':
+		{
+			//TODO: This name needs to be sanitised so that it is not illegal
+			// windows illegal chars: ^:<>?*|\/
+			// mac/*nix illegal chars: :
+			// mac/*nix shouldn't start with a .
+
+			if (arg != NULL)
+				a->base_name = arg;
+			else
+				argp_error(state, "Argument not specified for --base, -b option.");
+			
+			break;
+		}
+		case 's':
+		{
+			size_t size = strlen(arg);
+			if ( size > 1 )
+			{
+				argp_error(state, "The --size or -s option's argument was too long (expected 1 character)");
+				return 1;
+			}
+			else if (size == 0)
+			{
+				argp_error(state, "Argument not specified for --separator, -s option.");
+			}
+			else
+			{
+				assert(arg != NULL);
+				a->separator = arg[0];
+			}
+			
+			break;
+		}
+		case 'w':
+		{
+			if (arg != NULL)
+			{
+				char *endptr;
+				a->number_width = (unsigned int)strtol(arg, &endptr, 10);
+				if (endptr[0] != '\0')
+				{
+					argp_error(state, "--width or -w requires a number. You passed: \"%s\".", endptr);
+				}
+			}
+			else
+			{
+				argp_error(state, "Argument not specified for the --width, -w option.");
+			}
+			
+			break;
+		}
+		case 'S':
+		{
+			if (arg != NULL)
+			{
+				char *endptr;
+				a->sequence_start = (unsigned int)strtol(arg, &endptr, 10);
+				if (endptr[0] != '\0')
+				{
+					argp_error(state, "--sequence or -S requires a number. You passed: \"%s\".", endptr);
+				}
+			}
+			else
+			{
+				argp_error(state, "Argument not specified for the --width, -w option.");
+			}
+			
+			break;
+		}
+		default:
+			//argp_usage(state);
+			return ARGP_ERR_UNKNOWN;
+	}
+
+	return 0;
+}
+
+int main(int argc, char *argv[])
+{
+	struct arguments arguments;
+	struct argp_option options[] = {
+		{"base", 'b', "STRING", 0, "String portion of new filenames."},
+		{"separator", 's', "CHAR", 0, "Separator for different parts of new filenames."},
+		{"width", 'w', "NUM", 0, "Minimum field width for sequence number."},
+		{"start", 'S', "NUM", 0, "Starting integer for sequence."},
+		//{"quiet", 'q', 0, 0, "Program runs with no output. Implies --noconfirm, -i."},
+		{"verbose", 'v', 0, 0, "Program runs with verbose output."},
+		{"confirm", 'c', 0, 0, "Prompt for confirmation before renaming a file."},
+		//{"noconfirm", 'i', 0, 0, "Don't prompt for comfirmation before renaming a file."},
+		{"dry", 'd', 0, 0, "Perform a dry run. Implies --verbose, -v."},
+		{0}
+	};
+	struct argp argp = { options, parse_options, "FILE(S)", "Renames JPG and TIFF files using a base name, a separator, and a zero-padded sequence number. Files are sorted by the EXIF Original Date and Time attribute."};
+	
+	if (argp_parse(&argp, argc, argv, 0, 0, &arguments) == 0)
+	{
+		if (arguments.flags & OPT_VERBOSITY_VERBOSE)
+			printf("found %d files\n", arguments.file_list_count);
 		
-		file_list_destroy(file_list, file_list_count);
+		if (arguments.file_list_count > 0)
+		{
+			file_list_generate_new_filenames(arguments.file_list, arguments.base_name, arguments.separator, arguments.number_width, arguments.sequence_start);
+			
+			if (arguments.flags & OPT_VERBOSITY_VERBOSE)
+				file_list_print(arguments.file_list);
+			
+			if (!(arguments.flags & OPT_DRY_RUN))
+				file_list_rename_files(arguments.file_list, (arguments.flags & OPT_PROMPT_FOR_RENAME_CONFIRMATION));
+		}
+				
+		file_list_destroy(&arguments.file_list);
 	}
 	else
 	{
-		print_error(name, "No JPG or TIFF files to work on!\n");
+		if (!(arguments.flags & OPT_VERBOSITY_QUIET))
+			print_error("No JPG or TIFF files to work on!\n");
 	}
-	
-	if ( base_name != NULL )
-		free(base_name);
 	
     return 0;
 }

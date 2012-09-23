@@ -8,24 +8,37 @@
          ignoreCount = "0"
          continueAfterRunningActions = "No"
          filePath = "ns/main.c"
-         timestampString = "369717219.385808"
+         timestampString = "370090268.826563"
          startingColumnNumber = "9223372036854775807"
          endingColumnNumber = "9223372036854775807"
-         startingLineNumber = "248"
-         endingLineNumber = "248">
+         startingLineNumber = "390"
+         endingLineNumber = "390"
+         landmarkName = "parse_options()"
+         landmarkType = "7">
       </FileBreakpoint>
       <FileBreakpoint
          shouldBeEnabled = "Yes"
          ignoreCount = "0"
          continueAfterRunningActions = "No"
          filePath = "ns/main.c"
-         timestampString = "369717305.115144"
+         timestampString = "370090268.826563"
          startingColumnNumber = "9223372036854775807"
          endingColumnNumber = "9223372036854775807"
-         startingLineNumber = "505"
-         endingLineNumber = "505"
+         startingLineNumber = "534"
+         endingLineNumber = "534"
          landmarkName = "main()"
          landmarkType = "7">
+      </FileBreakpoint>
+      <FileBreakpoint
+         shouldBeEnabled = "Yes"
+         ignoreCount = "0"
+         continueAfterRunningActions = "No"
+         filePath = "ns/main.c"
+         timestampString = "370090268.826563"
+         startingColumnNumber = "9223372036854775807"
+         endingColumnNumber = "9223372036854775807"
+         startingLineNumber = "515"
+         endingLineNumber = "515">
       </FileBreakpoint>
    </FileBreakpoints>
 </Bucket>
