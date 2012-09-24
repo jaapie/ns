@@ -19,6 +19,14 @@
 #include <pcre.h>
 #include <argp.h>
 
+#define OPT_DRY_RUN 0x0001
+#define OPT_PROMPT_FOR_RENAME_CONFIRMATION 0x0002
+#define OPT_VERBOSITY_QUIET 0x0008
+#define OPT_VERBOSITY_NORMAL 0x0010
+#define OPT_VERBOSITY_VERBOSE 0x0020
+#define OPT_USE_COLOUR 0x0040
+#define OPT_DONT_USE_COLOUR 0x0080
+
 const char *argp_program_bug_address = "me@jacobdegeling.com";
 const char *argp_program_version = "version 0.1";
 
@@ -57,15 +65,26 @@ int file_exists(const char *file_name)
 	return -1;
 }
 
+int get_file_name_from_file_spec(char *file_spec, char *file_name)
+{
+	return 0;
+}
+
 int get_path_from_file_spec(char *file_spec, char *path)
 {
 	int i;
 	int occurrence_index = 0;
 	size_t count = strlen(file_spec);
 	
+	assert(file_spec != NULL);
+	assert(path != NULL);
 	assert(count > 0);
-	if ( count == 0 )
+
+	if (file_spec == NULL || path == NULL || count == 0)
+	{
+		errno = EINVAL;
 		return 0;
+	}
 	
 	for ( i = 0; i < count; i++ )
 	{
@@ -142,11 +161,6 @@ typedef struct file_item {
 	time_t date_time;
 	struct file_item *next;
 } file_item_t;
-
-file_item_t *file_list_create(int items)
-{	
-	return NULL;
-}
 
 void file_list_add(file_item_t **head, file_item_t *new)
 {
@@ -250,10 +264,24 @@ char *create_new_file_name( char *path, char *base, char separator, unsigned int
 	
 	if ( new_name != NULL )
 	{
+		int new_index = 2;
 		char *padded_number = get_zero_padded_number(sequence, width);
 		sprintf(new_name, "%s/%s%c%s.%s", path, base, separator, padded_number, ext);
-		free(padded_number);
 		
+		int exists = file_exists(new_name);
+		
+		// file exists, must avoid collision!
+		// reallocate the memory for the new name.
+		// add on 3 bytes: 1 for separator, and 2 for numbers 2..99
+		new_name = realloc(new_name, size + 3);
+		
+		while (exists > 0) {
+			sprintf(new_name, "%s/%s%c%s%c%d.%s", path, base, separator, padded_number, separator, new_index, ext);
+			exists = file_exists(new_name);
+			new_index++;
+		}
+		
+		free(padded_number);
 		return new_name;
 	}
 	else
@@ -294,7 +322,21 @@ int file_list_generate_new_filenames(file_item_t *list, char *base, char separat
 	return 0;
 }
 
-int file_list_rename_files( file_item_t *list, int prompt_for_confirmation)
+int get_confirmation(const char* string, char *values)
+{
+	char answer = '\0';
+	
+	do
+	{
+		printf("%s [%s]", string, values);
+		answer = getc(stdin);
+	}
+	while (strchr(values, answer));
+	
+	return answer;
+}
+
+int file_list_rename_files( file_item_t *list, int prompt_for_confirmation, int verbosity)
 {
 	file_item_t *current = list;
 
@@ -305,10 +347,18 @@ int file_list_rename_files( file_item_t *list, int prompt_for_confirmation)
 	
 	while(current != NULL)
 	{
+		if (prompt_for_confirmation == 1)
+		{
+			get_confirmation("", "ync");
+		}
+		
 		if ( rename(current->file_name, current->file_name_new) == -1)
 		{
 			return errno;
 		}
+		
+		if (verbosity & OPT_VERBOSITY_VERBOSE)
+			printf("%s -> %s", current->file_name, current->file_name_new);
 		
 		current = current->next;
 	}
@@ -349,15 +399,6 @@ time_t get_image_date_time(const char* image)
 	
 	return (time_t)0;
 }
-
-#define OPT_DRY_RUN 0x0001
-#define OPT_PROMPT_FOR_RENAME_CONFIRMATION 0x0002
-
-#define OPT_VERBOSITY_QUIET 0x0008
-#define OPT_VERBOSITY_NORMAL 0x0010
-#define OPT_VERBOSITY_VERBOSE 0x0020
-#define OPT_USE_COLOUR 0x0040
-#define OPT_DONT_USE_COLOUR 0x0080
 
 struct arguments {
 	char **files;
@@ -427,9 +468,11 @@ error_t parse_options(int key, char *arg, struct argp_state *state)
 			break;
 		case 'v':
 			a->flags |= OPT_VERBOSITY_VERBOSE;
+			a->flags &= ~(OPT_VERBOSITY_NORMAL | OPT_VERBOSITY_QUIET);
 			break;
 		case 'q':
 			a->flags |= OPT_VERBOSITY_QUIET;
+			a->flags &= ~(OPT_VERBOSITY_NORMAL | OPT_VERBOSITY_VERBOSE);
 			break;
 		case 'c':
 			a->flags |= OPT_PROMPT_FOR_RENAME_CONFIRMATION;
@@ -515,22 +558,34 @@ error_t parse_options(int key, char *arg, struct argp_state *state)
 int main(int argc, char *argv[])
 {
 	struct arguments arguments;
-	struct argp_option options[] = {
+	struct argp_option options[] =
+	{
 		{"base", 'b', "STRING", 0, "String portion of new filenames."},
 		{"separator", 's', "CHAR", 0, "Separator for different parts of new filenames."},
 		{"width", 'w', "NUM", 0, "Minimum field width for sequence number."},
 		{"start", 'S', "NUM", 0, "Starting integer for sequence."},
-		//{"quiet", 'q', 0, 0, "Program runs with no output. Implies --noconfirm, -i."},
+		{"quiet", 'q', 0, 0, "Program runs with no output. Disables --confirm."},
 		{"verbose", 'v', 0, 0, "Program runs with verbose output."},
 		{"confirm", 'c', 0, 0, "Prompt for confirmation before renaming a file."},
 		//{"noconfirm", 'i', 0, 0, "Don't prompt for comfirmation before renaming a file."},
 		{"dry", 'd', 0, 0, "Perform a dry run. Implies --verbose, -v."},
 		{0}
 	};
-	struct argp argp = { options, parse_options, "FILE(S)", "Renames JPG and TIFF files using a base name, a separator, and a zero-padded sequence number. Files are sorted by the EXIF Original Date and Time attribute."};
+	struct argp argp = { options, parse_options, "FILE(S)", "Renames JPG and TIFF files using a base name, a separator, and a zero-padded sequence number. Files are sorted by the EXIF Date and Time Digitised attribute."};
 	
 	if (argp_parse(&argp, argc, argv, 0, 0, &arguments) == 0)
 	{
+		int verbosity = arguments.flags & (OPT_VERBOSITY_QUIET | OPT_VERBOSITY_NORMAL | OPT_VERBOSITY_VERBOSE);
+		
+#ifdef DEBUG
+		if (verbosity & OPT_VERBOSITY_QUIET)
+			printf("Quiet verbosity\n");
+		if (verbosity & OPT_VERBOSITY_NORMAL)
+			printf("Normal verbosity\n");
+		if (verbosity & OPT_VERBOSITY_VERBOSE)
+			printf("Verbose verbosity\n");
+#endif
+
 		if (arguments.flags & OPT_VERBOSITY_VERBOSE)
 			printf("found %d files\n", arguments.file_list_count);
 		
@@ -542,7 +597,7 @@ int main(int argc, char *argv[])
 				file_list_print(arguments.file_list);
 			
 			if (!(arguments.flags & OPT_DRY_RUN))
-				file_list_rename_files(arguments.file_list, (arguments.flags & OPT_PROMPT_FOR_RENAME_CONFIRMATION));
+				file_list_rename_files(arguments.file_list, (arguments.flags & OPT_PROMPT_FOR_RENAME_CONFIRMATION), verbosity);
 		}
 				
 		file_list_destroy(&arguments.file_list);
