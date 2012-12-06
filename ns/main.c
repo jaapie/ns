@@ -10,25 +10,44 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include </usr/include/assert.h>
 #include <string.h>
-#include <time.h>
+#include </usr/include/time.h>
 #include <errno.h>
 #include <libexif/exif-data.h>
 #include <sys/stat.h>
 #include <pcre.h>
 #include <argp.h>
 
+typedef struct file_item {
+	char *file_name;
+	char *file_name_new;
+	bool collision_avoided;
+	time_t date_time;
+	struct file_item *next;
+} file_item_t;
+
 #define OPT_DRY_RUN 0x0001
-#define OPT_PROMPT_FOR_RENAME_CONFIRMATION 0x0002
+#define OPT_INTERACTIVE 0x0002
 #define OPT_VERBOSITY_QUIET 0x0008
 #define OPT_VERBOSITY_NORMAL 0x0010
 #define OPT_VERBOSITY_VERBOSE 0x0020
 #define OPT_USE_COLOUR 0x0040
 #define OPT_DONT_USE_COLOUR 0x0080
 
+struct arguments {
+	unsigned short int flags;
+	unsigned int number_width;
+	char separator;
+	unsigned int sequence_start;
+	char *base_name;
+	file_item_t *file_list;
+	int file_list_count;
+};
+
 const char *argp_program_bug_address = "me@jacobdegeling.com";
-const char *argp_program_version = "version 0.1";
+const char *argp_program_version = "Numerical Sequencer 0.1";
 
 void print_error(const char* fmt, ...)
 {
@@ -65,37 +84,118 @@ int file_exists(const char *file_name)
 	return -1;
 }
 
-int get_file_name_from_file_spec(char *file_spec, char *file_name)
+bool yes_no ()
 {
-	return 0;
+	int c = getchar();
+	
+	if (feof(stdin))
+	{
+		clearerr(stdin);
+		return false;
+	}
+	
+	bool yes = (c == 'y' || c == 'Y');
+	
+	while (c != '\n' && c != EOF)
+		c = getchar ();
+	
+	return yes;
+}
+
+bool get_confirmation(const char* fmt, ...)
+{
+	va_list list;
+	char buf[512];
+	
+	va_start(list, fmt);
+	vsprintf(buf, fmt, list);
+	va_end(list);
+	
+	printf("%s", buf);
+	
+	return yes_no();
+}
+
+int get_file_name_length(const char *file_spec)
+{
+	int i = 0;
+	size_t occurrence_index = 0;
+	size_t count = strlen(file_spec);
+	
+	assert(file_spec != NULL);
+	assert(count > 0);
+	
+	if (file_spec == NULL || count == 0)
+	{
+		errno = EINVAL;
+		return -1;
+	}
+	
+	for (i = 0; i < count; i++)
+	{
+		if (file_spec[i] == '/')
+			occurrence_index = i;
+	}
+	
+	return (int)(count - occurrence_index);
+}
+
+int get_file_name_from_file_spec(const char *file_spec, char *file_name)
+{
+	int i = 0, occurrence_index = -1;
+	int count = (int)strlen(file_spec);
+	
+	assert(file_spec != NULL);
+	assert(file_name != NULL);
+	assert(count > 0);
+	
+	if (file_spec == NULL || file_name == NULL || count == 0)
+	{
+		errno = EINVAL;
+		return -1;
+	}
+	
+	for (i = 0; i < count; i++)
+	{
+		if (file_spec[i] == '/')
+			occurrence_index = i;
+	}
+	
+	if (occurrence_index == -1)
+	{
+		occurrence_index = 0;
+		strncpy(file_name, file_spec, count);
+	}
+	else
+	{
+		occurrence_index++;
+		strncpy(file_name, &file_spec[occurrence_index], count - occurrence_index);
+		file_name[count - occurrence_index] = '\0';
+	}
+	
+	return count - occurrence_index;
 }
 
 int get_path_from_file_spec(char *file_spec, char *path)
 {
 	int i;
-	int occurrence_index = 0;
+	int occurrence_index = -1;
 	size_t count = strlen(file_spec);
 	
-	assert(file_spec != NULL);
-	assert(path != NULL);
 	assert(count > 0);
-
-	if (file_spec == NULL || path == NULL || count == 0)
-	{
-		errno = EINVAL;
+	if (count == 0)
 		return 0;
-	}
 	
-	for ( i = 0; i < count; i++ )
+	for (i = 0; i < count; i++)
 	{
-		if ( file_spec[i] == '/' )
+		if (file_spec[i] == '/')
 			occurrence_index = i;
 	}
 	
-	strncpy(path, file_spec, occurrence_index);
-	path[occurrence_index] = '\0';
+	strncpy(path, file_spec, occurrence_index + 1);
+	path[occurrence_index + 1] = '\0';
 	
-	return occurrence_index - 1;
+	return occurrence_index + 1;
 }
 
 char *get_file_ext(const char *filename)
@@ -154,13 +254,6 @@ char *get_zero_padded_number(int number, int width)
 	else
 		return NULL;
 }
-
-typedef struct file_item {
-	char *file_name;
-	char *file_name_new;
-	time_t date_time;
-	struct file_item *next;
-} file_item_t;
 
 void file_list_add(file_item_t **head, file_item_t *new)
 {
@@ -221,9 +314,8 @@ void file_list_destroy(file_item_t** head)
 		if (temp->file_name_new != NULL)
 			free(temp->file_name_new);
 		
-		free(current);
+		free(temp);
 	}
-	
 }
 
 void file_list_print(file_item_t *list)
@@ -248,13 +340,14 @@ void file_list_print(file_item_t *list)
 	}
 }
 
-char *create_new_file_name( char *path, char *base, char separator, unsigned int width, unsigned int sequence, char *ext )
+char *create_new_file_name(char *path, char *base, char separator, unsigned int width, unsigned int sequence, char *ext, bool *collision_avoided)
 {
 	char *new_name;
 	unsigned int size = 0;
 	
 	assert(base != NULL);
 	assert(ext != NULL);
+	assert(collision_avoided != NULL);
 	
 	size = (unsigned int)(strlen(path) + strlen(base) + 1 + width + 1 + strlen(ext) + 1);
 	
@@ -266,104 +359,148 @@ char *create_new_file_name( char *path, char *base, char separator, unsigned int
 	{
 		int new_index = 2;
 		char *padded_number = get_zero_padded_number(sequence, width);
-		sprintf(new_name, "%s/%s%c%s.%s", path, base, separator, padded_number, ext);
+		sprintf(new_name, "%s%s%c%s.%s", path, base, separator, padded_number, ext);
 		
 		int exists = file_exists(new_name);
 		
-		// file exists, must avoid collision!
-		// reallocate the memory for the new name.
-		// add on 3 bytes: 1 for separator, and 2 for numbers 2..99
-		new_name = realloc(new_name, size + 3);
-		
-		while (exists > 0) {
-			sprintf(new_name, "%s/%s%c%s%c%d.%s", path, base, separator, padded_number, separator, new_index, ext);
-			exists = file_exists(new_name);
-			new_index++;
+		if (exists > 0)
+		{
+			// file exists, must avoid collision!			
+			// reallocate the memory for the new name.
+			// add on 3 bytes: 1 for separator, and 2 for numbers 2..99
+			
+			*collision_avoided = true;
+			new_name = realloc(new_name, size + 3);
+			
+			while (exists > 0)
+			{
+				sprintf(new_name, "%s%s%c%s%c%d.%s", path, base, separator, padded_number, separator, new_index, ext);
+				exists = file_exists(new_name);
+				new_index++;
+			}
 		}
 		
 		free(padded_number);
 		return new_name;
 	}
 	else
+	{
+		errno = ENOMEM;
 		return NULL;
+	}
 }
 
-int file_list_generate_new_filenames(file_item_t *list, char *base, char separator, unsigned int width, unsigned int sequence_start )
+int file_item_generate_new_filename(file_item_t *item, char *base, char separator, unsigned int width, unsigned int sequence_start, unsigned int sequence_number, bool interactive, int verbosity )
 {
-	unsigned int i = 0;
 	char *ext;
 	char path[1024];
 	unsigned int length = 0;
-	file_item_t *current = list;
 	
-	assert(list != NULL);
+	assert(item != NULL);
 	assert(base != NULL);
 
-	while(current != NULL)
-	{
-		assert(current->file_name != NULL);
-		ext = get_file_ext(current->file_name);
-		assert(strlen(ext) > 0);
-		assert(strcmp(ext, "") != 0);
-		
-		length = get_path_from_file_spec(current->file_name, path);
-		
-		assert(length > 0);
-		
-		if (length > 0)
-			current->file_name_new = create_new_file_name(path, base, separator, width, sequence_start + i, ext);
-		else
-			return -1;
-		
-		i++;
-		current = current->next;
-	}
+	ext = get_file_ext(item->file_name);
+	assert(strlen(ext) > 0);
+	assert(strcmp(ext, "") != 0);
 	
+	length = get_path_from_file_spec(item->file_name, path);
+	
+	assert(length > 0); //TODO: if length is 0 it means that there is no path... that's OK. You just have to prepend './' to the filename.
+						// Therefore this assertion is not needed.
+	
+	if (length > 0)
+	{
+		item->file_name_new = create_new_file_name(path, base, separator, width, sequence_start + sequence_number, ext, &(item->collision_avoided));
+	}
+	else
+		return -1;
+		
 	return 0;
 }
 
-int get_confirmation(const char* string, char *values)
+void file_item_print(const file_item_t * restrict item, bool dry_run, int verbosity)
 {
-	char answer = '\0';
+	char name[255];
+	char name_new[255];
 	
-	do
+	get_file_name_from_file_spec(item->file_name, name);
+	get_file_name_from_file_spec(item->file_name_new, name_new);
+	
+	switch (verbosity)
 	{
-		printf("%s [%s]", string, values);
-		answer = getc(stdin);
+		case OPT_VERBOSITY_NORMAL:
+			printf("%s -> %s%c\n", name, name_new, item->collision_avoided ? '*' :' ');
+			break;
+		case OPT_VERBOSITY_QUIET:
+			break;
+		case OPT_VERBOSITY_VERBOSE:
+		{
+			char digitised_time[20]; // 01-01-2012 01:01:24 = 19 chars + 1 NUL
+			
+			strftime(digitised_time, 20, "%d-%m-%Y %H:%M:%S", localtime(&(item->date_time)));
+			
+			printf("%s (taken on %s) %s renamed to %s%s\n", name, digitised_time, dry_run ? "would be" : "will be", name_new, item->collision_avoided ? " (avoiding collision)" : "");
+			break;
+		}			
+		default:
+			break;
 	}
-	while (strchr(values, answer));
-	
-	return answer;
 }
 
-int file_list_rename_files( file_item_t *list, int prompt_for_confirmation, int verbosity)
+int file_item_rename_file( file_item_t *item)
 {
-	file_item_t *current = list;
-
-	assert(list != NULL);
+	assert(item != NULL);
 	
-	if (list == NULL)
+	if (item == NULL)
 		return -1;
 	
-	while(current != NULL)
+	if ( rename(item->file_name, item->file_name_new) == -1)
 	{
-		if (prompt_for_confirmation == 1)
-		{
-			get_confirmation("", "ync");
-		}
-		
-		if ( rename(current->file_name, current->file_name_new) == -1)
-		{
-			return errno;
-		}
-		
-		if (verbosity & OPT_VERBOSITY_VERBOSE)
-			printf("%s -> %s", current->file_name, current->file_name_new);
-		
-		current = current->next;
+		return errno;
 	}
 	
 	return 0;
+}
+
+int process_files( struct arguments args)
+{
+	unsigned int sequence_number = 0;
+	file_item_t *current = args.file_list;
+	bool interactive = args.flags & OPT_INTERACTIVE;
+	int verbosity = args.flags & (OPT_VERBOSITY_QUIET | OPT_VERBOSITY_NORMAL | OPT_VERBOSITY_VERBOSE);
+	bool dry_run = (args.flags & OPT_DRY_RUN);
+	
+	while (current != NULL)
+	{
+		file_item_generate_new_filename(current, args.base_name, args.separator, args.number_width, args.sequence_start, sequence_number, interactive, verbosity);
+
+		//printf("%d) %s, %ld -> %s\n", sequence_number + 1, current->file_name, current->date_time, current->file_name_new );
+	
+		if (dry_run)
+		{
+			file_item_print(current, dry_run, verbosity);
+		}
+		else
+		{
+			file_item_print(current, dry_run, verbosity);
+			
+			if (interactive)
+			{
+				if (get_confirmation("Rename the file? [yn] "))
+				{
+					file_item_rename_file(current);
+				}
+			}
+			else
+			{
+				file_item_rename_file(current);
+			}
+		}
+		
+		sequence_number++;
+		current = current->next;
+	}
+	return false;
 }
 
 time_t get_image_date_time(const char* image)
@@ -392,6 +529,8 @@ time_t get_image_date_time(const char* image)
 				exif_data_unref(data);
 				return epoch;
 			}
+			else
+				return 0;
 		}
 	}
 	
@@ -399,17 +538,6 @@ time_t get_image_date_time(const char* image)
 	
 	return (time_t)0;
 }
-
-struct arguments {
-	char **files;
-	unsigned short int flags;
-	unsigned int number_width;
-	char separator;
-	unsigned int sequence_start;
-	char *base_name;
-	file_item_t *file_list;
-	int file_list_count;
-};
 
 error_t parse_options(int key, char *arg, struct argp_state *state)
 {
@@ -445,6 +573,7 @@ error_t parse_options(int key, char *arg, struct argp_state *state)
 					new->file_name = arg;
 					new->date_time = date_time;
 					new->file_name_new = 0;
+					new->collision_avoided = false;
 					new->next = 0;
 					
 					file_list_add(&a->file_list, new);
@@ -453,36 +582,51 @@ error_t parse_options(int key, char *arg, struct argp_state *state)
 			}
 			else
 			{
-				argp_failure(state, 1, ENOENT, "\"%s\" was not found, or is not a file.\n", arg);
+				argp_failure(state, 1, ENOENT, "%s", arg);
 			}
 			
 			break;
 		}
 		case ARGP_KEY_NO_ARGS:
 		{
+#ifdef DEBUG
+			printf("no args!\n");
+#endif
 			argp_usage(state);
 			break;
 		}
-		case 'd':
+		case 'n':
 			a->flags |= OPT_DRY_RUN;
+			a->flags &= ~(OPT_VERBOSITY_QUIET);
 			break;
 		case 'v':
 			a->flags |= OPT_VERBOSITY_VERBOSE;
 			a->flags &= ~(OPT_VERBOSITY_NORMAL | OPT_VERBOSITY_QUIET);
 			break;
 		case 'q':
+		{
+			if (a->flags & OPT_DRY_RUN)
+				break;
+			
 			a->flags |= OPT_VERBOSITY_QUIET;
 			a->flags &= ~(OPT_VERBOSITY_NORMAL | OPT_VERBOSITY_VERBOSE);
 			break;
-		case 'c':
-			a->flags |= OPT_PROMPT_FOR_RENAME_CONFIRMATION;
+		}
+		case 'i':
+			if (a->flags & OPT_DRY_RUN)
+				break;
+			
+			if (a->flags & OPT_VERBOSITY_QUIET) // turn off quiet verbosity if interactive mode is specified
+				a->flags &= ~OPT_VERBOSITY_QUIET;
+
+			a->flags |= OPT_INTERACTIVE | OPT_VERBOSITY_NORMAL;
 			break;
 		case 'b':
 		{
 			//TODO: This name needs to be sanitised so that it is not illegal
 			// windows illegal chars: ^:<>?*|\/
 			// mac/*nix illegal chars: :
-			// mac/*nix shouldn't start with a .
+			// mac/*nix shouldn't start with a . (issue warning because a . is still legal)
 
 			if (arg != NULL)
 				a->base_name = arg;
@@ -496,7 +640,7 @@ error_t parse_options(int key, char *arg, struct argp_state *state)
 			size_t size = strlen(arg);
 			if ( size > 1 )
 			{
-				argp_error(state, "The --size or -s option's argument was too long (expected 1 character)");
+				argp_error(state, "The --separator or -s option's argument was too long (expected 1 character)");
 				return 1;
 			}
 			else if (size == 0)
@@ -560,47 +704,52 @@ int main(int argc, char *argv[])
 	struct arguments arguments;
 	struct argp_option options[] =
 	{
+		{0, 0, 0, 0, "File Naming Options:", 20},
 		{"base", 'b', "STRING", 0, "String portion of new filenames."},
 		{"separator", 's', "CHAR", 0, "Separator for different parts of new filenames."},
 		{"width", 'w', "NUM", 0, "Minimum field width for sequence number."},
 		{"start", 'S', "NUM", 0, "Starting integer for sequence."},
-		{"quiet", 'q', 0, 0, "Program runs with no output. Disables --confirm."},
+		{0, 0, 0, 0, "Program Flow Options:", -10},
+		{"quiet", 'q', 0, 0, "Program runs with no output."},
 		{"verbose", 'v', 0, 0, "Program runs with verbose output."},
-		{"confirm", 'c', 0, 0, "Prompt for confirmation before renaming a file."},
-		//{"noconfirm", 'i', 0, 0, "Don't prompt for comfirmation before renaming a file."},
-		{"dry", 'd', 0, 0, "Perform a dry run. Implies --verbose, -v."},
+		{"interactive", 'i', 0, 0, "Prompt for confirmation before avoiding a collision. Ignores --quiet, -q."},
+		{"dry-run", 'n', 0, 0, "Perform a dry run. Implies --verbose, -v, and ignores --interactive, -i."},
 		{0}
 	};
-	struct argp argp = { options, parse_options, "FILE(S)", "Renames JPG and TIFF files using a base name, a separator, and a zero-padded sequence number. Files are sorted by the EXIF Date and Time Digitised attribute."};
+	
+	char help_text[1024] = "Renames JPG and TIFF files using a base name, a separator, and a zero-padded sequence number. Files are sorted by the EXIF Date and Time Digitised attribute.\n\nns uses libexif to read EXIF data";
+
+#ifdef MAC_OS_X
+	strncat(help_text, ", and the argp-standalone package on Mac OS X", 1024);
+#else
+#endif
+	
+	struct argp argp = { options, parse_options, "FILE(S)", help_text};
 	
 	if (argp_parse(&argp, argc, argv, 0, 0, &arguments) == 0)
 	{
+#ifdef DEBUG
 		int verbosity = arguments.flags & (OPT_VERBOSITY_QUIET | OPT_VERBOSITY_NORMAL | OPT_VERBOSITY_VERBOSE);
 		
-#ifdef DEBUG
 		if (verbosity & OPT_VERBOSITY_QUIET)
 			printf("Quiet verbosity\n");
+		
 		if (verbosity & OPT_VERBOSITY_NORMAL)
 			printf("Normal verbosity\n");
+		
 		if (verbosity & OPT_VERBOSITY_VERBOSE)
 			printf("Verbose verbosity\n");
 #endif
 
 		if (arguments.flags & OPT_VERBOSITY_VERBOSE)
-			printf("found %d files\n", arguments.file_list_count);
-		
+			printf("Found %d files\n", arguments.file_list_count);
+
 		if (arguments.file_list_count > 0)
 		{
-			file_list_generate_new_filenames(arguments.file_list, arguments.base_name, arguments.separator, arguments.number_width, arguments.sequence_start);
-			
-			if (arguments.flags & OPT_VERBOSITY_VERBOSE)
-				file_list_print(arguments.file_list);
-			
-			if (!(arguments.flags & OPT_DRY_RUN))
-				file_list_rename_files(arguments.file_list, (arguments.flags & OPT_PROMPT_FOR_RENAME_CONFIRMATION), verbosity);
+			process_files(arguments);
 		}
-				
-		file_list_destroy(&arguments.file_list);
+
+		file_list_destroy(&(arguments.file_list));
 	}
 	else
 	{
