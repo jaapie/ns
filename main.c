@@ -355,8 +355,7 @@ char *create_new_file_name(char *path, char *base, char separator, unsigned int 
 	
 	assert(new_name != NULL);
 	
-	if ( new_name != NULL )
-	{
+	if ( new_name != NULL ) {
 		int new_index = 2;
 		char *padded_number = get_zero_padded_number(sequence, width);
 		sprintf(new_name, "%s%s%c%s.%s", path, base, separator, padded_number, ext);
@@ -382,9 +381,7 @@ char *create_new_file_name(char *path, char *base, char separator, unsigned int 
 		
 		free(padded_number);
 		return new_name;
-	}
-	else
-	{
+	} else {
 		errno = ENOMEM;
 		return NULL;
 	}
@@ -408,9 +405,8 @@ int file_item_generate_new_filename(file_item_t *item, char *base, char separato
 	assert(length > 0); //TODO: if length is 0 it means that there is no path... that's OK. You just have to prepend './' to the filename.
 						// Therefore this assertion is not needed.
 	
-	if (length > 0)
-	{
-		item->file_name_new = create_new_file_name(path, base, separator, width, sequence_start + sequence_number, ext, &(item->collision_avoided));
+	if (length == 0) {
+				
 	}
 	else
 		return -1;
