@@ -3,3 +3,5 @@ tmp/*
 ns.xcodeproj/*
 ns
 test
+images
+*.dSYM
