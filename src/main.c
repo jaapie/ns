@@ -120,7 +120,7 @@ int process_files( struct arguments args) {
     bool dry_run = (args.flags & OPT_DRY_RUN);
 
     while (current != NULL) {
-        file_item_generate_new_filename(current, args.base_name, args.separator, args.number_width, args.sequence_start, sequence_number, interactive, verbosity);
+        file_item_generate_new_filename(current, args.base_name, args.separator, args.number_width, args.sequence_start, sequence_number); //, interactive, verbosity);
 
         //printf("%d) %s, %ld -> %s\n", sequence_number + 1, current->file_name, current->date_time, current->file_name_new );
 
@@ -320,16 +320,16 @@ int main(int argc, char *argv[]) {
     struct argp_option options[] =
     {
         {0, 0, 0, 0, "File Naming Options:", 20},
-        {"base", 'b', "STRING", 0, "String portion of new filenames."},
-        {"separator", 's', "CHAR", 0, "Separator for different parts of new filenames."},
-        {"width", 'w', "NUM", 0, "Minimum field width for sequence number, defaults to 4."},
-        {"start", 'S', "NUM", 0, "Starting integer for sequence, defaults to 0."},
+        {"base", 'b', "STRING", 0, "String portion of new filenames.", 0},
+        {"separator", 's', "CHAR", 0, "Separator for different parts of new filenames.", 0},
+        {"width", 'w', "NUM", 0, "Minimum field width for sequence number, defaults to 4.", 0},
+        {"start", 'S', "NUM", 0, "Starting integer for sequence, defaults to 0.", 0},
         {0, 0, 0, 0, "Program Flow Options:", -10},
-        {"quiet", 'q', 0, 0, "Program runs with no output."},
-        {"verbose", 'v', 0, 0, "Program runs with verbose output."},
-        {"interactive", 'i', 0, 0, "Prompt for confirmation before avoiding a collision. Ignores --quiet, -q."},
-        {"dry-run", 'n', 0, 0, "Perform a dry run. Implies --verbose, -v, and ignores --interactive, -i."},
-        {0}
+        {"quiet", 'q', 0, 0, "Program runs with no output.", 0},
+        {"verbose", 'v', 0, 0, "Program runs with verbose output.", 0},
+        {"interactive", 'i', 0, 0, "Prompt for confirmation before avoiding a collision. Ignores --quiet, -q.", 0},
+        {"dry-run", 'n', 0, 0, "Perform a dry run. Implies --verbose, -v, and ignores --interactive, -i.", 0},
+        {0, 0, 0, 0, 0, 0}
     };
 
     char help_text[1024] = "Renames JPG and TIFF files using a base name, a separator, and a zero-padded sequence number. Files are sorted by the EXIF Date and Time Digitised attribute.\n\nns uses libexif to read EXIF data";
@@ -339,7 +339,7 @@ int main(int argc, char *argv[]) {
 #else
 #endif
 
-    struct argp argp = { options, parse_options, "FILE(S)", help_text};
+    struct argp argp = { options, parse_options, "FILE(S)", help_text, 0, 0, 0};
 
     if (argp_parse(&argp, argc, argv, 0, 0, &arguments) == 0) {
 #ifdef DEBUG

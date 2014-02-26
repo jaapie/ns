@@ -10,7 +10,7 @@
 #include "file.h"
 #include "file_item.h"
 
-int file_item_generate_new_filename(file_item_t *item, char *base, char separator, unsigned int width, unsigned int sequence_start, unsigned int sequence_number, bool interactive, int verbosity ) {
+int file_item_generate_new_filename(file_item_t *item, char *base, char separator, unsigned int width, unsigned int sequence_start, unsigned int sequence_number) { /*, bool interactive, int verbosity ) { */
     char *ext;
     char path[1024];
     unsigned int length = 0;
@@ -31,6 +31,13 @@ int file_item_generate_new_filename(file_item_t *item, char *base, char separato
     /* if (length == 0) { */
 
     /* } */
+
+    /* TODO:
+     * could refactor the below referenced function so that most of the work
+     * is done in this function, therefore not needing to pass the verbosity
+     * and interactive parameters in which this create_new_file_name function
+     * should not know about anyhow.
+     */ 
 
     item->file_name_new = create_new_file_name(path, base, separator, width, sequence_start + sequence_number, ext, &(item->collision_avoided));
 

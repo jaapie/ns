@@ -10,7 +10,7 @@
 #include "options.h"
 
 int get_file_name_length(const char *file_spec) {
-    int i = 0;
+    size_t i = 0;
     size_t occurrence_index = 0;
     size_t count = strlen(file_spec);
 
@@ -31,11 +31,13 @@ int get_file_name_length(const char *file_spec) {
 }
 
 int get_file_name_from_file_spec(const char *file_spec, char *file_name) {
-    int i = 0, occurrence_index = -1;
-    int count = (int)strlen(file_spec);
+    size_t i = 0;
+    int occurrence_index = -1;
 
     assert(file_spec != NULL);
     assert(file_name != NULL);
+
+    size_t count = strlen(file_spec);
     assert(count > 0);
 
     if (file_spec == NULL || file_name == NULL || count == 0) {
@@ -53,7 +55,7 @@ int get_file_name_from_file_spec(const char *file_spec, char *file_name) {
         strncpy(file_name, file_spec, count);
     } else {
         occurrence_index++;
-        strncpy(file_name, &file_spec[occurrence_index], count - occurrence_index);
+        strncpy(file_name, &file_spec[occurrence_index], count - (size_t)occurrence_index);
         file_name[count - occurrence_index] = '\0';
     }
 
@@ -61,7 +63,7 @@ int get_file_name_from_file_spec(const char *file_spec, char *file_name) {
 }
 
 int get_path_from_file_spec(char *file_spec, char *path) {
-    int i;
+    size_t i;
     int occurrence_index = -1;
     size_t count = strlen(file_spec);
 
@@ -112,6 +114,9 @@ int file_exists(const char *file_name) {
     return -1;
 }
 
+/*
+ * TODO: add verbosity parameter
+ */
 char *create_new_file_name(char *path, char *base, char separator, unsigned int width, unsigned int sequence, char *ext, bool *collision_avoided) {
     char *new_name;
     unsigned int size = 0;
