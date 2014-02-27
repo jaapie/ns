@@ -11,6 +11,7 @@ AH_TOP([#define _GNU_SOURCE  1])
 
 # Checks for programs.
 AC_PROG_CC
+AC_PROG_CC_STDC
 
 # Checks for libraries.
 AC_CHECK_LIB([argp], [argp_parse])
