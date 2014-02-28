@@ -69,7 +69,7 @@ bool get_confirmation(const char* fmt, ...) {
     return yes_no();
 }
 
-char *get_zero_padded_number(int number, int width) {
+char *get_zero_padded_number(size_t number, size_t width) {
     char *number_str; /*= "\0\0\0\0\0\0";*/
     size_t number_str_len = 0;
 
@@ -79,7 +79,7 @@ char *get_zero_padded_number(int number, int width) {
     if ( number_str != NULL ) {
         memset(number_str, '\0', 7);
 
-        sprintf(number_str, "%d", number);
+        sprintf(number_str, "%lu", number);
         number_str_len = strlen(number_str);
 
         if ( number_str_len < width ) {

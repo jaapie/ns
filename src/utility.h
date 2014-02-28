@@ -21,4 +21,4 @@
 void print_error(const char* fmt, ...);
 bool yes_no ();
 bool get_confirmation(const char* fmt, ...);
-char *get_zero_padded_number(int number, int width);
+char *get_zero_padded_number(size_t number, size_t width);
