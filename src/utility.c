@@ -18,15 +18,7 @@
  *
  */
 
-#include <stdarg.h>
-#include <stdbool.h>
-#include <assert.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <stdlib.h>
-#include <stdio.h>
-
+#include "ns.h"
 #include "utility.h"
 
 void print_error(const char* fmt, ...) {

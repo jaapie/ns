@@ -21,18 +21,7 @@
 // Uses libexif
 // Exif code usage helped by http://code.google.com/p/wiimc/source/browse/trunk/libs/libexif/contrib/examples/photographer.c?r=434
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-/* #include <stdarg.h> */
-#include <assert.h>
-#include <string.h>
-#include <time.h>
-#include <errno.h>
-#include <libexif/exif-data.h>
-/* #include <sys/stat.h> */
-/* #include <pcre.h> */
-#include <argp.h>
+#include "ns.h"
 
 #include "options.h"
 #include "file_item.h"
