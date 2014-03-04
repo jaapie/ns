@@ -15,7 +15,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#ifndef HAV__BOOL
+#ifndef HAVE__BOOL
   #define bool int
   #define true 1
   #define false 0
