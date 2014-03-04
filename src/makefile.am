@@ -1,0 +1,7 @@
+bin_PROGRAMS = ns
+ns_SOURCES = main.c file.c file_item.c utility.c ns.h file.h file_item.h utility.h options.h
+ns_LDFLAGS = -lexif
+
+if DARWIN
+	ns_LDFLAGS += -largp
+endif
