@@ -1,6 +1,6 @@
 # ns
 
-A command line Numerical Sequencer for digital photos. Sorts files by the EXIF Date and Time Captured attribute.
+A command line numerical sequencer for digital photos. Sorts files by the EXIF Date and Time Captured attribute, then renames them with a base string, a seperator, and a sequence number.
 
 ## Prerequisites
 You need to have the following prerequisite tools and libraries installed on your machine.
@@ -18,9 +18,9 @@ If you download and build it and get errors, *please* let me know. File an issue
 
 To build it, for now, you just need to run the following commands:
 
+    ./configure
     make
     sudo make install
 
-The project does not yet use autotools, but I am planning to add this support soon if I run into any portability issues in the future.
 ##Contributing
 Please fork the repo on gitbub and send a pull-request. You are awesome.
