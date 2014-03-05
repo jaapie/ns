@@ -38,8 +38,17 @@ struct arguments {
     int file_list_count;
 };
 
+#ifdef PACKAGE_BUGREPORT
+const char *argp_program_bug_address = PACKAGE_BUGREPORT;
+#else
 const char *argp_program_bug_address = "me@jacobdegeling.com";
-const char *argp_program_version = "Numerical Sequencer 0.1";
+#endif
+
+#ifdef PACKAGE_VERSION
+const char *argp_program_version = PACKAGE_VERSION;
+#else
+const char *argp_program_version = "0.1.0";
+#endif
 
 void file_list_add(file_item_t **head, file_item_t *new) {
     assert(head != NULL);
