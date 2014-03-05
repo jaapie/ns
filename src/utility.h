@@ -18,7 +18,12 @@
  *
  */
 
+#ifndef __NS_UTILITY_H_
+#define __NS_UTILITY_H_
+
 void print_error(const char* fmt, ...);
 bool yes_no ();
 bool get_confirmation(const char* fmt, ...);
 char *get_zero_padded_number(size_t number, size_t width);
+
+#endif

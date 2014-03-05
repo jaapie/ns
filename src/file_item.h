@@ -18,6 +18,8 @@
  *
  */
 
+#ifndef __NS_FILE_ITEM_H_
+#define __NS_FILE_ITEM_H_
 
 typedef struct file_item {
     char *file_name;
@@ -30,3 +32,5 @@ typedef struct file_item {
 int file_item_generate_new_filename(file_item_t *item, char *base, char separator, unsigned int width, unsigned int sequence_start, unsigned int sequence_number); /*, bool interactive, int verbosity ); */
 int file_item_rename_file( file_item_t *item);
 void file_item_print(const file_item_t * restrict item, bool dry_run, int verbosity);
+
+#endif
